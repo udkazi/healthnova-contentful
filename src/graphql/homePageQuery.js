@@ -2,7 +2,6 @@
 export const HOME_PAGE_QUERY = `
   query {
     pageCollection(
-      where: { title: "Home page" }
       limit: 1
     ) {
       items {
