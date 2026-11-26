@@ -1,69 +1,61 @@
 
-const SPACE_ID = import.meta.env.VITE_CONTENTFUL_SPACE_ID;
-const ENVIRONMENT = import.meta.env.VITE_CONTENTFUL_ENVIRONMENT;
-
-const DELIVERY_TOKEN = import.meta.env.VITE_CONTENTFUL_DELIVERY_TOKEN;
-const LOCAL_PREVIEW_TOKEN = import.meta.env.VITE_CONTENTFUL_PREVIEW_TOKEN;
-
-const CONTENTFUL_URL = `https://graphql.contentful.com/content/v1/spaces/${SPACE_ID}/environments/${ENVIRONMENT}`;
-
-export async function fetchContentful(query, isPreview = false) {
-  let response;
-
-  // Preview mode
-  if (isPreview) {
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1" ||
-      window.location.hostname.startsWith("192.168.");
-
-    // Local preview: call Contentful Preview API directly
-    if (isLocal) {
-      if (!LOCAL_PREVIEW_TOKEN) {
-        throw new Error("Local Contentful preview token is missing");
-      }
-
-      response = await fetch(CONTENTFUL_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${LOCAL_PREVIEW_TOKEN}`,
-        },
-        body: JSON.stringify({ query }),
-      });
-    } else {
-      // Netlify preview: call server-side function
-      response = await fetch("/.netlify/functions/contentful-preview", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query }),
-      });
-    }
-  } else {
-    // Published content: Delivery API
-    if (!DELIVERY_TOKEN) {
-      throw new Error("Contentful delivery token is missing");
-    }
-
-    response = await fetch(CONTENTFUL_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${DELIVERY_TOKEN}`,
-      },
-      body: JSON.stringify({ query }),
+export default async (request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", {
+      status: 405,
     });
   }
 
-  const result = await response.json();
+  try {
+    const { query, variables } = await request.json();
 
-  if (!response.ok || result.errors) {
-    throw new Error(
-      result.errors?.[0]?.message || "Contentful API request failed"
+    // Read server-side Netlify environment variables
+    const spaceId = process.env.CONTENTFUL_SPACE_ID;
+    const environment = process.env.CONTENTFUL_ENVIRONMENT;
+    const token = process.env.CONTENTFUL_PREVIEW_TOKEN;
+
+    if (!spaceId || !environment || !token) {
+      return new Response(
+        JSON.stringify({ error: "Missing server configuration" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const response = await fetch(
+      `https://graphql.contentful.com/content/v1/spaces/${spaceId}/environments/${environment}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query,
+          variables,
+        }),
+      }
+    );
+
+    const result = await response.text();
+
+    return new Response(result, {
+      status: response.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    console.error("Contentful Preview Error:", error);
+
+    return new Response(
+      JSON.stringify({ error: "Preview request failed" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
-
-  return result.data;
-}
+};
