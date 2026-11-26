@@ -1,13 +1,18 @@
 
 import { useState } from "react";
 import { Box, Typography, Button } from "@mui/material";
+import { useContentfulInspectorMode } from "@contentful/live-preview/react";
 
 function HeroSlider({ slides }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  if (!slides || slides.length === 0) return null;
+  const activeSlide = slides?.[activeIndex];
 
-  const activeSlide = slides[activeIndex];
+  const inspectorProps = useContentfulInspectorMode({
+    entryId: activeSlide?.sys?.id,
+  });
+
+  if (!slides || slides.length === 0) return null;
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev + 1) % slides.length);
@@ -33,11 +38,18 @@ function HeroSlider({ slides }) {
       }}
     >
       <Box sx={{ maxWidth: 500 }}>
-        <Typography variant="h3" fontWeight="bold">
+        <Typography
+          variant="h3"
+          fontWeight="bold"
+          {...inspectorProps({ fieldId: "title" })}
+        >
           {activeSlide.title}
         </Typography>
 
-        <Typography sx={{ my: 2 }}>
+        <Typography
+          sx={{ my: 2 }}
+          {...inspectorProps({ fieldId: "description" })}
+        >
           {activeSlide.description}
         </Typography>
 

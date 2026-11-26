@@ -3,20 +3,28 @@ export const HOME_PAGE_QUERY = `
   query {
     pageCollection(
       limit: 1
+      preview: true
     ) {
       items {
         title
 
-        contentForHomePageCollection {
+        contentForHomePageCollection(preview: true) {
           items {
             __typename
 
             ... on HeroCarousel {
+              sys {
+                id
+              }
               internalName
-              slidesCollection {
+
+              slidesCollection(preview: true) {
                 items {
-                  description
+                  sys {
+                    id
+                  }
                   title
+                  description
                   heroSlideImage {
                     url
                   }
@@ -25,6 +33,9 @@ export const HOME_PAGE_QUERY = `
             }
 
             ... on ContentSection {
+              sys {
+                id
+              }
               internalName
               description
               imagePosition
